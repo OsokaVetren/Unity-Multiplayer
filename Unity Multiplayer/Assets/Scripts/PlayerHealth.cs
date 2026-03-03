@@ -6,57 +6,60 @@ public class PlayerHealth : NetworkBehaviour
     [SyncVar(hook = nameof(OnHealthChanged))]
     public int health = 100;
 
-    private Vector3 spawnPoint; // Точка возрождения
+    private Vector3 spawnPoint;
 
     void Start()
     {
-        // Запоминаем место, где игрок появился в самом начале
         spawnPoint = transform.position;
     }
 
-    [Server] // Этот метод может вызываться только на сервере
+    [Server]
     public void TakeDamage(int damage)
     {
-        if (health <= 0) return; // Чтобы не умирать дважды
-
+        if (health <= 0) return;
         health -= damage;
 
         if (health <= 0)
         {
+            // Вместо прямого перемещения вызываем TargetRpc
             Respawn();
         }
     }
 
     void Respawn()
     {
-        // 1. Восстанавливаем здоровье на сервере
         health = 100;
+        // Отправляем команду конкретному клиенту, который владеет этим игроком
+        TargetRespawn(connectionToClient, spawnPoint);
+    }
 
-        // 2. Перемещаем игрока в начальную точку
-        // ВАЖНО: Если у вас есть CharacterController, его нужно временно выключить
+    // TargetRpc выполняется ТОЛЬКО на том клиенте, которому принадлежит этот объект
+    [TargetRpc]
+    void TargetRespawn(NetworkConnection target, Vector3 position)
+    {
+        // 1. Отключаем контроллер, чтобы он не блокировал перемещение
         CharacterController controller = GetComponent<CharacterController>();
         if (controller != null) controller.enabled = false;
 
-        transform.position = spawnPoint;
+        // 2. Перемещаем
+        transform.position = position;
 
+        // 3. Сбрасываем физику (если есть Rigidbody)
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero; // В новых версиях Unity .linearVelocity, в старых .velocity
+            rb.angularVelocity = Vector3.zero;
+        }
+
+        // 4. Включаем контроллер обратно
         if (controller != null) controller.enabled = true;
 
-        // 3. Сообщаем клиентам, что нужно сбросить визуальные эффекты (если есть)
-        RpcOnRespawn();
-    }
-
-    [ClientRpc]
-    void RpcOnRespawn()
-    {
-        // Здесь можно сбросить эффекты, например, очистить экран от крови
-        Debug.Log("Я возродился!");
-        
-        // Если вы при смерти отключали скрипты управления, включите их здесь
+        Debug.Log("Клиент перемещен в точку спавна");
     }
 
     void OnHealthChanged(int oldHealth, int newHealth)
     {
-        // Обновление UI здоровья
-        Debug.Log($"HP: {newHealth}");
+        if (newHealth <= 0) Debug.Log("Смерть!");
     }
 }
