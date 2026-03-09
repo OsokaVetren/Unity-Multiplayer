@@ -8,6 +8,10 @@ public class PlayerShooting : NetworkBehaviour
     [SerializeField] private float range = 100f;
     [SerializeField] private GameObject hitEffectPrefab; // Префаб искр/крови
 
+    [Header("References")]
+
+    public Recoil recoilScript; 
+
     void Update()
     {
         // Только владелец персонажа может стрелять
@@ -25,8 +29,12 @@ public class PlayerShooting : NetworkBehaviour
     [Command]
     void CmdShoot(Vector3 origin, Vector3 direction)
     {
+        
         if (Physics.Raycast(origin, direction, out RaycastHit hit, range))
         {
+
+            recoilScript.FireRecoil();
+
             Debug.Log("Hit: " + hit.transform.name);
 
             // Проверяем, попали ли в игрока

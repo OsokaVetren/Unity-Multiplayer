@@ -1,15 +1,32 @@
 using Mirror;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerHealth : NetworkBehaviour
 {
     [SyncVar(hook = nameof(OnHealthChanged))]
     public int health = 100;
 
+    [SerializeField] private int maxHealth = 100;
+
+    private Image healthBarFill;
+
     private Vector3 spawnPoint;
 
     void Start()
     {
+
+        if (isLocalPlayer)
+        {
+            // Ищем твой новый объект по имени
+            GameObject fillObj = GameObject.Find("Healthbar_fill");
+            if (fillObj != null)
+            {
+                healthBarFill = fillObj.GetComponent<Image>();
+                UpdateUI(health);
+            }
+        }
+
         spawnPoint = transform.position;
     }
 
@@ -61,5 +78,17 @@ public class PlayerHealth : NetworkBehaviour
     void OnHealthChanged(int oldHealth, int newHealth)
     {
         if (newHealth <= 0) Debug.Log("Смерть!");
+
+        if (isLocalPlayer && healthBarFill != null)
+        {
+            UpdateUI(newHealth);
+        }
+    }
+
+    void UpdateUI(int currentHealth)
+    {
+        // fillAmount принимает значения от 0.0 до 1.0
+        // Делим текущее ХП на максимальное
+        healthBarFill.fillAmount = 1 - (float)currentHealth / maxHealth;
     }
 }
